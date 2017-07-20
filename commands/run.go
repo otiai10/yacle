@@ -7,7 +7,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/otiai10/gulo/gulo"
+	"github.com/otiai10/yacle/yacle"
 	"github.com/urfave/cli"
 )
 
@@ -28,7 +28,7 @@ var Run = cli.Command{
 		}
 		r.Close()
 
-		root := gulo.NewCWL()
+		root := yacle.NewCWL()
 		if err = yaml.Unmarshal(b, root); err != nil {
 			return err
 		}
@@ -44,7 +44,7 @@ var Run = cli.Command{
 			if err != nil {
 				return err
 			}
-			if err = gulo.ParseProvidedInputs(r, root.ProvidedInputs); err != nil {
+			if err = yacle.ParseProvidedInputs(r, root.ProvidedInputs); err != nil {
 				return err
 			}
 			r.Close()

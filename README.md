@@ -1,15 +1,15 @@
-# gulo
+# yacle
 
-yet another [cwl](https://github.com/common-workflow-language/common-workflow-language) engine
+Yet Another [Cwl](https://github.com/common-workflow-language/common-workflow-language) Engine
 
 # installation
 
 ```sh
-go get -u github.com/otiai10/gulo
+go get -u github.com/otiai10/yacle
 ```
 
 # try it
 
 ```sh
-gulo run 1st-tool.cwl echo-job.yml
+yacle run 1st-tool.cwl echo-job.yml
 ```

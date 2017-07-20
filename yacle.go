@@ -4,13 +4,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/otiai10/gulo/commands"
+	"github.com/otiai10/yacle/commands"
 	"github.com/urfave/cli"
 )
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "gulo"
+	app.Name = "yacle"
 	app.Commands = []cli.Command{
 		commands.Run,
 	}
