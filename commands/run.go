@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,12 +15,15 @@ import (
 // Run ...
 var Run = cli.Command{
 	Name:        "run",
+	Aliases:     []string{"r"},
+	Usage:       "Run your workflow described by CWL",
+	ArgsUsage:   "[file.cwl] [inputs.yaml]",
 	Description: "Run the cwl",
 	Action: func(ctx *cli.Context) error {
 
 		r, err := os.Open(ctx.Args().First())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to open CWL: %v", err)
 		}
 
 		b, err := ioutil.ReadAll(r)

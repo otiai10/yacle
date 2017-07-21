@@ -1,5 +1,7 @@
 # yacle
 
+[![Build Status](https://travis-ci.org/otiai10/yacle.svg?branch=master)](https://travis-ci.org/otiai10/yacle)
+
 Yet Another [Cwl](https://github.com/common-workflow-language/common-workflow-language) Engine
 
 # installation

@@ -11,6 +11,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = "yacle"
+	app.Usage = "Yet Another CWL Engine"
 	app.Commands = []cli.Command{
 		commands.Run,
 	}
