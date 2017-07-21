@@ -3,7 +3,13 @@ language: go
 go:
     - 1.8
     - tip
+python:
+    - 3.6
 before_script:
     - go get ./...
+    - go install
+    - pip install cwltest
+    - git clone https://github.com/common-workflow-language/common-workflow-language.git
 script:
     - go test ./... -v
+    - cd common-workflow-language && ./run_test.sh RUNNER=yacle
