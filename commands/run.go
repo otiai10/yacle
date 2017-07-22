@@ -25,7 +25,7 @@ var Run = cli.Command{
 		}
 
 		root := cwl.NewCWL()
-		if err = cwl.Decode(r, root); err != nil {
+		if err = root.Decode(r); err != nil {
 			return err
 		}
 		r.Close()
@@ -41,7 +41,7 @@ var Run = cli.Command{
 			if err != nil {
 				return err
 			}
-			if err = cwl.DecodeProvidedInputs(r, root.ProvidedInputs); err != nil {
+			if err = root.ProvidedInputs.Decode(r); err != nil {
 				return err
 			}
 			r.Close()
