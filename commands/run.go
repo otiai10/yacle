@@ -2,13 +2,11 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	yaml "gopkg.in/yaml.v2"
-
-	"github.com/otiai10/yacle/yacle"
+	cwl "github.com/otiai10/cwl.go"
+	"github.com/otiai10/yacle/core"
 	"github.com/urfave/cli"
 )
 
@@ -26,16 +24,11 @@ var Run = cli.Command{
 			return fmt.Errorf("failed to open CWL: %v", err)
 		}
 
-		b, err := ioutil.ReadAll(r)
-		if err != nil {
+		root := cwl.NewCWL()
+		if err = cwl.Decode(r, root); err != nil {
 			return err
 		}
 		r.Close()
-
-		root := yacle.NewCWL()
-		if err = yaml.Unmarshal(b, root); err != nil {
-			return err
-		}
 
 		p, err := filepath.Abs(r.Name())
 		if err != nil {
@@ -48,13 +41,13 @@ var Run = cli.Command{
 			if err != nil {
 				return err
 			}
-			if err = yacle.ParseProvidedInputs(r, root.ProvidedInputs); err != nil {
+			if err = cwl.DecodeProvidedInputs(r, root.ProvidedInputs); err != nil {
 				return err
 			}
 			r.Close()
 		}
 
-		if err = root.Run(); err != nil {
+		if err = core.Run(root); err != nil {
 			return err
 		}
 
