@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"os/exec"
 
 	cwl "github.com/otiai10/cwl.go"
@@ -13,5 +14,11 @@ func Run(root *cwl.Root) error {
 		return err
 	}
 	cmd := exec.Command(root.BaseCommand, args...)
-	return cmd.Run()
+	b, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	// XXX: temp
+	fmt.Print(string(b))
+	return nil
 }

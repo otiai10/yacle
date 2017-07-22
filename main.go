@@ -13,8 +13,9 @@ func main() {
 	app.Name = "yacle"
 	app.Usage = "Yet Another CWL Engine"
 	app.Commands = []cli.Command{
-		commands.Run,
+		commands.Run, // yacle run
 	}
+	app.Action = commands.Run.Action // yacle (without subcommand)
 	if err := app.Run(os.Args); err != nil {
 		log.Fatalln(err)
 	}
