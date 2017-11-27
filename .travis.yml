@@ -8,7 +8,7 @@ python:
 before_script:
     - go get ./...
     - go install
-    - pip install cwltest
+    - pip install --user cwltest
 script:
     - go test ./... -v
     - cd common-workflow-language && ./run_test.sh RUNNER=yacle
