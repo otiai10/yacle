@@ -1,0 +1,3 @@
+[submodule "common-workflow-language"]
+	path = common-workflow-language
+	url = https://github.com/common-workflow-language/common-workflow-language.git

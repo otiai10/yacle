@@ -27,12 +27,12 @@ func TestRun(t *testing.T) {
 		Expect(t, err.Error()).ToBe("failed to open CWL: open ../testdata/not/existing: no such file or directory")
 	})
 
-	When(t, "Required params are not provided", func(t *testing.T) {
-		set := flag.NewFlagSet("yacle", flag.ExitOnError)
-		set.Parse([]string{"../testdata/001/1st-tool.cwl.yaml"})
-		ctx := cli.NewContext(cli.NewApp(), set, nil)
-		err := Run.Action.(func(*cli.Context) error)(ctx)
-		Expect(t, err).Not().ToBe(nil)
-		Expect(t, err.Error()).ToBe("Input `message` is required but not provided")
-	})
+	// When(t, "Required params are not provided", func(t *testing.T) {
+	// 	set := flag.NewFlagSet("yacle", flag.ExitOnError)
+	// 	set.Parse([]string{"../testdata/001/1st-tool.cwl.yaml"})
+	// 	ctx := cli.NewContext(cli.NewApp(), set, nil)
+	// 	err := Run.Action.(func(*cli.Context) error)(ctx)
+	// 	Expect(t, err).Not().ToBe(nil)
+	// 	Expect(t, err.Error()).ToBe("Input `message` is required but not provided")
+	// })
 }

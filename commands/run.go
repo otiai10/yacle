@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	cwl "github.com/otiai10/cwl.go"
 	"github.com/otiai10/yacle/core"
@@ -30,18 +29,14 @@ var Run = cli.Command{
 		}
 		r.Close()
 
-		p, err := filepath.Abs(r.Name())
-		if err != nil {
-			return err
-		}
-		root.Path = p
+		// p, err := filepath.Abs(r.Name())
+		// if err != nil {
+		// 	return err
+		// }
 
 		if len(ctx.Args()) > 1 {
 			r, err = os.Open(ctx.Args()[1])
 			if err != nil {
-				return err
-			}
-			if err = root.ProvidedInputs.Decode(r); err != nil {
 				return err
 			}
 			r.Close()
