@@ -51,7 +51,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 
 	priors, inputs, err := h.ensureInputs()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to ensure required inputs: %v", err)
 	}
 
 	oneline := append(priors, append(arguments, inputs...)...)
@@ -70,7 +70,10 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	if output, err := os.Open(filepath.Join(filepath.Dir(h.Workflow.Path), "cwl.output.json")); err == nil {
 		defer output.Close()
 		if _, err := io.Copy(os.Stdout, output); err != nil {
-			return err
+			return fmt.Errorf("failed to dump standard output file: %v", err)
+		}
+		if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
+			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
 	}
 	// }}}
