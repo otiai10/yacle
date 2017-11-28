@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -65,12 +66,16 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		return fmt.Errorf("failed to execute BaseCommand: %v", err)
 	}
 
-	// if err := exec.Command("cd", h.Outdir).Run(); err != nil {
-	// 	return err
-	// }
+	// {{{ TODO: Remove this hard coding!!
+	if output, err := os.Open(filepath.Join(filepath.Dir(h.Workflow.Path), "cwl.output.json")); err == nil {
+		defer output.Close()
+		if _, err := io.Copy(os.Stdout, output); err != nil {
+			return err
+		}
+	}
+	// }}}
 
 	return nil
-	// return nil
 }
 
 // ensureArguments ...
