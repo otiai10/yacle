@@ -2,7 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 
 	cwl "github.com/otiai10/cwl.go"
 	"github.com/otiai10/yacle/core"
@@ -16,37 +18,47 @@ var Run = cli.Command{
 	Usage:       "Run your workflow described by CWL",
 	ArgsUsage:   "[file.cwl] [inputs.yaml]",
 	Description: "Run the cwl",
-	Action: func(ctx *cli.Context) error {
+	Action: func(ctx *cli.Context) (err error) {
 
-		r, err := os.Open(ctx.Args().First())
+		cwlfile, err := os.Open(ctx.Args().First())
 		if err != nil {
 			return fmt.Errorf("failed to open CWL: %v", err)
 		}
+		defer cwlfile.Close()
 
 		root := cwl.NewCWL()
-		if err = root.Decode(r); err != nil {
-			return err
+		if err = root.Decode(cwlfile); err != nil {
+			return fmt.Errorf("failed to decode CWL file: %v", err)
 		}
-		r.Close()
-
-		// p, err := filepath.Abs(r.Name())
-		// if err != nil {
-		// 	return err
-		// }
-
-		if len(ctx.Args()) > 1 {
-			r, err = os.Open(ctx.Args()[1])
-			if err != nil {
-				return err
-			}
-			r.Close()
-		}
-
-		if err = core.Run(root); err != nil {
+		if root.Path, err = filepath.Abs(cwlfile.Name()); err != nil {
 			return err
 		}
 
-		return nil
+		paramfile, err := os.Open(ctx.Args().Get(1))
+		if err != nil {
+			return fmt.Errorf("failed to open parameter file: %v", err)
+		}
+		defer paramfile.Close()
+
+		params := cwl.NewParameters()
+		if err = params.Decode(paramfile); err != nil {
+			return fmt.Errorf("failed to decode parameter file: %v", err)
+		}
+
+		handler, err := core.NewHandler(root)
+		if err != nil {
+			return fmt.Errorf("failed to instantiate yacle.Handler: %v", err)
+		}
+
+		// Optionals
+		handler.Outdir = ctx.String("outdir")
+		handler.Quiet = ctx.Bool("quiet")
+
+		// Debug ...
+		handler.Quiet = false
+		handler.SetLogger(log.New(os.Stdout, "[DEBUG]\t", 0))
+
+		return handler.Handle(*params)
 
 	},
 }
