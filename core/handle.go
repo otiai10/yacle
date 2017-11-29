@@ -124,6 +124,15 @@ func (h *Handler) ensureInput(input cwl.Input) (cwl.Input, error) {
 	if input.Default == nil && input.Provided == nil {
 		return input, fmt.Errorf("input `%s` doesn't have default field but not provided", input.ID)
 	}
+	if key, needed := input.Types[0].NeedRequirement(); needed {
+		for _, req := range h.Workflow.Requirements {
+			for _, requiredtype := range req.Types {
+				if requiredtype.Name == key {
+					input.RequiredType = &requiredtype
+				}
+			}
+		}
+	}
 	return input, nil
 }
 
