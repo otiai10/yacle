@@ -10,4 +10,4 @@ before_script:
     - go install
     - pip install --user cwltest
 script:
-    - ./common-workflow-language/run_test.sh RUNNER=yacle -n1
+    - ./cwl/run_test.sh RUNNER=yacle -n1
