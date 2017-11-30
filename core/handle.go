@@ -107,10 +107,12 @@ func (h *Handler) ensureInputs() (priors []string, result []string, err error) {
 		if err != nil {
 			return priors, result, err
 		}
-		if in.Binding != nil && in.Binding.Position < 0 {
-			priors = append(priors, in.Flatten()...)
-		} else {
-			result = append(result, in.Flatten()...)
+		if in.Binding != nil {
+			if in.Binding.Position < 0 {
+				priors = append(priors, in.Flatten()...)
+			} else {
+				result = append(result, in.Flatten()...)
+			}
 		}
 	}
 	return priors, result, nil
