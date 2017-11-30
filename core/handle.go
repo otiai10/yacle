@@ -132,6 +132,7 @@ func (h *Handler) ensureInput(input cwl.Input) (cwl.Input, error) {
 			for _, requiredtype := range req.Types {
 				if requiredtype.Name == key {
 					input.RequiredType = &requiredtype
+					input.Requirements = h.Workflow.Requirements
 				}
 			}
 		}
