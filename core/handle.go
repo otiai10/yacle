@@ -107,7 +107,10 @@ func (h *Handler) ensureInputs() (priors []string, result []string, err error) {
 		if err != nil {
 			return priors, result, err
 		}
-		if in.Binding != nil && in.Binding.Position < 0 {
+		if in.Binding == nil {
+			continue
+		}
+		if in.Binding.Position < 0 {
 			priors = append(priors, in.Flatten()...)
 		} else {
 			result = append(result, in.Flatten()...)
@@ -123,6 +126,16 @@ func (h *Handler) ensureInput(input cwl.Input) (cwl.Input, error) {
 	}
 	if input.Default == nil && input.Provided == nil {
 		return input, fmt.Errorf("input `%s` doesn't have default field but not provided", input.ID)
+	}
+	if key, needed := input.Types[0].NeedRequirement(); needed {
+		for _, req := range h.Workflow.Requirements {
+			for _, requiredtype := range req.Types {
+				if requiredtype.Name == key {
+					input.RequiredType = &requiredtype
+					input.Requirements = h.Workflow.Requirements
+				}
+			}
+		}
 	}
 	return input, nil
 }
