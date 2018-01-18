@@ -15,3 +15,10 @@ go get -u github.com/otiai10/yacle
 ```sh
 yacle run 1st-tool.cwl echo-job.yml
 ```
+
+# for cwl conformance test
+
+```sh
+cd cwl
+./run_test.sh RUNNER=yacle -n1
+```
