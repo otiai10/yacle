@@ -18,7 +18,17 @@ yacle run 1st-tool.cwl echo-job.yml
 
 # for cwl conformance test
 
+## Just execute
+
 ```sh
 cd cwl
 ./run_test.sh RUNNER=yacle -n1
+```
+
+## Install newest yacle and test with it
+
+move to yacle directory and
+
+```sh
+go install . ;  cwl/run_test.sh RUNNER=yacle -n1
 ```
