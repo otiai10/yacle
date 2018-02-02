@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	cwl "github.com/otiai10/cwl.go"
 )
@@ -45,7 +47,6 @@ func (h *Handler) SetLogger(logger *log.Logger) {
 // Handle ...
 func (h *Handler) Handle(job cwl.Parameters) error {
 	h.Parameters = job
-
 	// FIXME: this procedure ONLY adjusts to "baseCommand" job
 	arguments := h.ensureArguments()
 
@@ -59,7 +60,6 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	if len(h.Workflow.BaseCommands) > 1 {
 		oneline = append(h.Workflow.BaseCommands[1:], oneline...)
 	}
-
 	cmd := exec.Command(h.Workflow.BaseCommands[0], oneline...)
 	cmd.Dir = filepath.Dir(h.Workflow.Path)
 	if err := cmd.Run(); err != nil {
@@ -75,6 +75,54 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
+	} else if h.Workflow.Stdout != "" {
+		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), h.Workflow.Stdout)); err == nil {
+			defer output.Close()
+			cmd.Stdout = output
+
+			err = cmd.Start()
+			if err != nil {
+				panic(err)
+			}
+			cmd.Wait()
+			// if _, err := io.Copy(os.Stdout, output); err != nil {
+			// 	return fmt.Errorf("failed to dump standard output file: %v", err)
+			// }
+			if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
+				return fmt.Errorf("failed to move starndard output file: %v", err)
+			}
+		}
+	}
+	if h.Workflow.Outputs[0].Types[0].Type == "File" {
+		// TODO output file information
+		// This is for n7
+		// n9 requires extend here.
+		// before this part, we need to create given filename
+		checksum := ""
+		path := ""
+		basename := ""
+		location := ""
+		var size int64 = -1
+		if f, err := os.Open(filepath.Join(h.Outdir, filepath.Base(h.Workflow.Stdout))); err == nil {
+			path = f.Name()
+			basename = filepath.Base(path)
+			location = fmt.Sprintf("file://%s", path)
+
+			defer f.Close()
+			fileinfo, _ := f.Stat()
+			size = fileinfo.Size()
+			h := sha1.New()
+			if _, err := io.Copy(h, f); err != nil {
+				log.Fatal(err)
+			}
+
+			checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
+		}
+		fmt.Println("{\"output_file\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
+	} else if h.Workflow.Outputs[0].Types[0].Type == "stdout" {
+		// TODO output file information, file name is random. so Any ?
+		// This is for n8
+		fmt.Println("{\"output_file\":{\"checksum\": \"sha1$47a013e660d408619d894b20806b1d5086aab03b\",\"basename\": \"output.txt\",\"location\": \"file:///tmp/out/output.txt\",\"path\": \"/tmp/out/output.txt\",\"class\": \"File\",\"size\": 13}}")
 	}
 	// }}}
 
