@@ -121,10 +121,6 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
 		}
 		fmt.Println("{\"output_file\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
-	} else if h.Workflow.Outputs[0].Types[0].Type == "stdout" {
-		// TODO output file information, file name is random. so Any ?
-		// This is for n8
-		fmt.Println("{\"output_file\":{\"checksum\": \"sha1$47a013e660d408619d894b20806b1d5086aab03b\",\"basename\": \"output.txt\",\"location\": \"file:///tmp/out/output.txt\",\"path\": \"/tmp/out/output.txt\",\"class\": \"File\",\"size\": 13}}")
 	}
 	// }}}
 
