@@ -62,8 +62,10 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	}
 	cmd := exec.Command(h.Workflow.BaseCommands[0], oneline...)
 	cmd.Dir = filepath.Dir(h.Workflow.Path)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to execute BaseCommand: %v", err)
+	if h.Workflow.Outputs[0].Types[0].Type != "File" {
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to execute BaseCommand: %v", err)
+		}
 	}
 
 	// {{{ TODO: Remove this hard coding!!
