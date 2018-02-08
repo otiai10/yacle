@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 
 	cwl "github.com/otiai10/cwl.go"
 )
@@ -67,6 +69,17 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			return fmt.Errorf("failed to execute BaseCommand: %v", err)
 		}
 	}
+	filename := h.Workflow.Stdout
+	if h.Workflow.Stdout == "" {
+		letters := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		filenamelen := 16
+		randombytearray := make([]byte, filenamelen)
+		rand.Seed(time.Now().UnixNano())
+		for i := range randombytearray {
+			randombytearray[i] = letters[rand.Intn(len(letters))]
+		}
+		filename = string(randombytearray)
+	}
 
 	// {{{ TODO: Remove this hard coding!!
 	if output, err := os.Open(filepath.Join(filepath.Dir(h.Workflow.Path), "cwl.output.json")); err == nil {
@@ -78,7 +91,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
 	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" {
-		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), h.Workflow.Stdout)); err == nil {
+		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), filename)); err == nil {
 			defer output.Close()
 			cmd.Stdout = output
 
@@ -105,7 +118,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		basename := ""
 		location := ""
 		var size int64 = -1
-		if f, err := os.Open(filepath.Join(h.Outdir, filepath.Base(h.Workflow.Stdout))); err == nil {
+		if f, err := os.Open(filepath.Join(h.Outdir, filepath.Base(filename))); err == nil {
 			path = f.Name()
 			basename = filepath.Base(path)
 			location = fmt.Sprintf("file://%s", path)
