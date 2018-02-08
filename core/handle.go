@@ -62,7 +62,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	}
 	cmd := exec.Command(h.Workflow.BaseCommands[0], oneline...)
 	cmd.Dir = filepath.Dir(h.Workflow.Path)
-	if h.Workflow.Outputs[0].Types[0].Type != "File" {
+	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to execute BaseCommand: %v", err)
 		}
@@ -77,7 +77,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
-	} else if h.Workflow.Stdout != "" {
+	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" {
 		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), h.Workflow.Stdout)); err == nil {
 			defer output.Close()
 			cmd.Stdout = output
@@ -95,7 +95,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			}
 		}
 	}
-	if h.Workflow.Outputs[0].Types[0].Type == "File" {
+	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" {
 		// TODO output file information
 		// This is for n7
 		// n9 requires extend here.
