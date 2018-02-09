@@ -62,7 +62,13 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	if len(h.Workflow.BaseCommands) > 1 {
 		oneline = append(h.Workflow.BaseCommands[1:], oneline...)
 	}
-	cmd := exec.Command(h.Workflow.BaseCommands[0], oneline...)
+	var cmd *exec.Cmd
+	if len(h.Workflow.BaseCommands) != 0 {
+		cmd = exec.Command(h.Workflow.BaseCommands[0], oneline...)
+	} else {
+		// using arguments valueFrom
+		cmd = exec.Command("bash", "-c", h.Workflow.Arguments[0].Binding.ValueFrom.Key())
+	}
 	cmd.Dir = filepath.Dir(h.Workflow.Path)
 	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" {
 		if err := cmd.Run(); err != nil {
