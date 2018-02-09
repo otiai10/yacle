@@ -62,23 +62,32 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	if len(h.Workflow.BaseCommands) > 1 {
 		oneline = append(h.Workflow.BaseCommands[1:], oneline...)
 	}
-	cmd := exec.Command(h.Workflow.BaseCommands[0], oneline...)
+	var cmd *exec.Cmd
+	if len(h.Workflow.BaseCommands) != 0 {
+		cmd = exec.Command(h.Workflow.BaseCommands[0], oneline...)
+	} else {
+		// using arguments valueFrom
+		cmd = exec.Command("bash", "-c", h.Workflow.Arguments[0].Binding.ValueFrom.Key())
+	}
 	cmd.Dir = filepath.Dir(h.Workflow.Path)
-	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" {
+	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" && h.Workflow.Outputs[0].Types[0].Type != "stderr" {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to execute BaseCommand: %v", err)
 		}
 	}
 	filename := h.Workflow.Stdout
 	if h.Workflow.Stdout == "" {
-		letters := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		filenamelen := 16
-		randombytearray := make([]byte, filenamelen)
-		rand.Seed(time.Now().UnixNano())
-		for i := range randombytearray {
-			randombytearray[i] = letters[rand.Intn(len(letters))]
+		filename = h.Workflow.Stderr
+		if h.Workflow.Stderr == "" {
+			letters := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			filenamelen := 16
+			randombytearray := make([]byte, filenamelen)
+			rand.Seed(time.Now().UnixNano())
+			for i := range randombytearray {
+				randombytearray[i] = letters[rand.Intn(len(letters))]
+			}
+			filename = string(randombytearray)
 		}
-		filename = string(randombytearray)
 	}
 
 	// {{{ TODO: Remove this hard coding!!
@@ -90,10 +99,11 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
-	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" {
+	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" {
 		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), filename)); err == nil {
 			defer output.Close()
 			cmd.Stdout = output
+			cmd.Stderr = output
 
 			err = cmd.Start()
 			if err != nil {
@@ -108,7 +118,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			}
 		}
 	}
-	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" {
+	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" {
 		// TODO output file information
 		// This is for n7
 		// n9 requires extend here.
