@@ -77,14 +77,17 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	}
 	filename := h.Workflow.Stdout
 	if h.Workflow.Stdout == "" {
-		letters := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		filenamelen := 16
-		randombytearray := make([]byte, filenamelen)
-		rand.Seed(time.Now().UnixNano())
-		for i := range randombytearray {
-			randombytearray[i] = letters[rand.Intn(len(letters))]
+		filename = h.Workflow.Stderr
+		if h.Workflow.Stderr == "" {
+			letters := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			filenamelen := 16
+			randombytearray := make([]byte, filenamelen)
+			rand.Seed(time.Now().UnixNano())
+			for i := range randombytearray {
+				randombytearray[i] = letters[rand.Intn(len(letters))]
+			}
+			filename = string(randombytearray)
 		}
-		filename = string(randombytearray)
 	}
 
 	// {{{ TODO: Remove this hard coding!!
@@ -100,6 +103,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), filename)); err == nil {
 			defer output.Close()
 			cmd.Stdout = output
+			cmd.Stderr = output
 
 			err = cmd.Start()
 			if err != nil {
