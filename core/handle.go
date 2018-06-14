@@ -143,8 +143,8 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 
 			checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
 		}
-		output_identifier := h.Workflow.Outputs[0].ID
-		fmt.Println("{\""+output_identifier+"\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
+		outputIdentifier := h.Workflow.Outputs[0].ID
+		fmt.Println("{\""+outputIdentifier+"\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
 	}
 	// }}}
 
