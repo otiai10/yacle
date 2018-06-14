@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -69,8 +70,20 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		// using arguments valueFrom
 		cmd = exec.Command("bash", "-c", h.Workflow.Arguments[0].Binding.ValueFrom.Key())
 	}
-	cmd.Dir = filepath.Dir(h.Workflow.Path)
-	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" && h.Workflow.Outputs[0].Types[0].Type != "stderr" {
+	// Set command execution directory
+	commandExecDir := h.Workflow.Path
+	cmd.Dir = filepath.Dir(commandExecDir)
+	if h.Workflow.Outputs[0].Types[0].Type == "Directory" {
+		// Create TempDir for exec
+		commandExecDir, _ = ioutil.TempDir("/tmp", "yacleexec")
+		srcName := filepath.Join(filepath.Dir(h.Workflow.Path), inputs[0])
+		dstName := filepath.Join(commandExecDir, inputs[0])
+
+		// Create copied file
+		os.Link(srcName, dstName)
+		cmd.Dir = commandExecDir
+	}
+	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" && h.Workflow.Outputs[0].Types[0].Type != "stderr" && h.Workflow.Outputs[0].Types[0].Type != "Directory" {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to execute BaseCommand: %v", err)
 		}
@@ -91,7 +104,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	}
 
 	// {{{ TODO: Remove this hard coding!!
-	if output, err := os.Open(filepath.Join(filepath.Dir(h.Workflow.Path), "cwl.output.json")); err == nil {
+	if output, err := os.Open(filepath.Join(filepath.Dir(commandExecDir), "cwl.output.json")); err == nil {
 		defer output.Close()
 		if _, err := io.Copy(os.Stdout, output); err != nil {
 			return fmt.Errorf("failed to dump standard output file: %v", err)
@@ -99,12 +112,11 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
-	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" {
-		if output, err := os.Create(filepath.Join(filepath.Dir(h.Workflow.Path), filename)); err == nil {
+	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
+		if output, err := os.Create(filepath.Join(filepath.Dir(commandExecDir), filename)); err == nil {
 			defer output.Close()
 			cmd.Stdout = output
 			cmd.Stderr = output
-
 			err = cmd.Start()
 			if err != nil {
 				panic(err)
@@ -118,33 +130,80 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			}
 		}
 	}
-	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" {
+	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
 		// TODO output file information
 		// This is for n7
 		// n9 requires extend here.
 		// before this part, we need to create given filename
-		checksum := ""
-		path := ""
-		basename := ""
-		location := ""
-		var size int64 = -1
-		if f, err := os.Open(filepath.Join(h.Outdir, filepath.Base(filename))); err == nil {
-			path = f.Name()
-			basename = filepath.Base(path)
-			location = fmt.Sprintf("file://%s", path)
+		if h.Workflow.Outputs[0].Types[0].Type != "Directory" {
+			checksum := ""
+			path := ""
+			basename := ""
+			location := ""
+			var size int64 = -1
+			if f, err := os.Open(filepath.Join(h.Outdir, filepath.Base(filename))); err == nil {
+				path = f.Name()
+				basename = filepath.Base(path)
+				location = fmt.Sprintf("file://%s", path)
 
-			defer f.Close()
-			fileinfo, _ := f.Stat()
-			size = fileinfo.Size()
-			h := sha1.New()
-			if _, err := io.Copy(h, f); err != nil {
-				log.Fatal(err)
+				defer f.Close()
+				fileinfo, _ := f.Stat()
+				size = fileinfo.Size()
+				h := sha1.New()
+				if _, err := io.Copy(h, f); err != nil {
+					log.Fatal(err)
+				}
+
+				checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
 			}
+			outputIdentifier := h.Workflow.Outputs[0].ID
+			fmt.Println("{\"" + outputIdentifier + "\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
+		} else {
+			if h.Workflow.Outputs[0].Binding.Glob[0] == "." {
+				// Remove linked input file
+				dstName := filepath.Join(commandExecDir, inputs[0])
+				errRemove := os.Remove(dstName)
 
-			checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
+				if errRemove != nil {
+					panic(errRemove)
+				}
+				//files, err := ioutil.ReadDir(filepath.Join(commandExecDir,h.Workflow.Outputs[0].Binding.Glob[0]))
+				files, err := ioutil.ReadDir(commandExecDir)
+				if err != nil {
+					panic(err)
+				}
+				listingString := ""
+				for _, file := range files {
+					checksum := ""
+					path := ""
+					basename := ""
+					location := ""
+					var size int64 = -1
+					if f, err := os.Open(commandExecDir + "/" + file.Name()); err == nil {
+						path = f.Name()
+						basename = filepath.Base(path)
+						location = fmt.Sprintf("file://%s", path)
+
+						defer f.Close()
+						fileinfo, _ := f.Stat()
+						size = fileinfo.Size()
+						h := sha1.New()
+						if _, err := io.Copy(h, f); err != nil {
+							log.Fatal(err)
+						}
+
+						checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
+						if listingString != "" {
+							listingString = listingString + ","
+						}
+						listingString = listingString + "{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}"
+					}
+				}
+				outputIdentifier := h.Workflow.Outputs[0].ID
+				fmt.Println("{\"" + outputIdentifier + "\":{\"class\": \"Directory\",\"listing\": [" + listingString + "]}}")
+
+			}
 		}
-		outputIdentifier := h.Workflow.Outputs[0].ID
-		fmt.Println("{\""+outputIdentifier+"\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
 	}
 	// }}}
 
