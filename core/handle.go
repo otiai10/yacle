@@ -88,10 +88,32 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			return fmt.Errorf("failed to execute BaseCommand: %v", err)
 		}
 	}
-	filename := h.Workflow.Stdout
-	if h.Workflow.Stdout == "" {
-		filename = h.Workflow.Stderr
-		if h.Workflow.Stderr == "" {
+	var filename string
+	isStdoutFlag := false
+	isStderrFlag := false
+	stderrFilename := h.Workflow.Stderr
+	for i:= range h.Workflow.Outputs {
+		switch h.Workflow.Outputs[i].Types[0].Type {
+		case "stderr":
+			stderrFilename = h.Workflow.Outputs[i].ID
+			isStderrFlag = true
+		case "stdout":
+			filename = h.Workflow.Outputs[i].ID
+			isStdoutFlag = true
+		}
+	}
+	if h.Workflow.Stdout != "" {
+		filename = h.Workflow.Stdout
+		isStdoutFlag = true
+	}
+	if h.Workflow.Stderr != "" {
+		stderrFilename = h.Workflow.Stderr
+		isStderrFlag = true
+	}
+	// TODO check filename
+	if filename == "" {
+		filename = stderrFilename
+		if stderrFilename == "" {
 			letters := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 			filenamelen := 16
 			randombytearray := make([]byte, filenamelen)
@@ -100,6 +122,8 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 				randombytearray[i] = letters[rand.Intn(len(letters))]
 			}
 			filename = string(randombytearray)
+			// TODO only accept
+			isStdoutFlag = true
 		}
 	}
 
@@ -113,10 +137,27 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
 	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
-		if output, err := os.Create(filepath.Join(filepath.Dir(commandExecDir), filename)); err == nil {
+		var output *os.File
+		var err error
+		if isStdoutFlag {
+			output, err = os.Create(filepath.Join(filepath.Dir(commandExecDir), filename))
+		}
+		var stderrOutput *os.File
+		var stderrErr error
+		if isStderrFlag {
+			stderrOutput, stderrErr = os.Create(filepath.Join(filepath.Dir(commandExecDir), stderrFilename))
+		} else {
+			stderrOutput = output
+		}
+		if err == nil {
 			defer output.Close()
+		}
+		if stderrErr == nil {
+			defer stderrOutput.Close()
+		}
+		if err == nil {
 			cmd.Stdout = output
-			cmd.Stderr = output
+			cmd.Stderr = stderrOutput
 			err = cmd.Start()
 			if err != nil {
 				panic(err)
@@ -125,8 +166,15 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			// if _, err := io.Copy(os.Stdout, output); err != nil {
 			// 	return fmt.Errorf("failed to dump standard output file: %v", err)
 			// }
-			if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
-				return fmt.Errorf("failed to move starndard output file: %v", err)
+			if(isStdoutFlag){
+				if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
+					return fmt.Errorf("failed to move starndard output file: %v", err)
+				}
+			}
+			if(isStderrFlag){
+				if stderrErr := os.Rename(stderrOutput.Name(), filepath.Join(h.Outdir, filepath.Base(stderrOutput.Name()))); stderrErr != nil {
+					return fmt.Errorf("failed to move starndard error file: %v", err)
+				}
 			}
 		}
 	}
@@ -135,7 +183,8 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		// This is for n7
 		// n9 requires extend here.
 		// before this part, we need to create given filename
-		if h.Workflow.Outputs[0].Types[0].Type != "Directory" {
+		if h.Workflow.Outputs[0].Types[0].Type != "Directory" &&
+		!(isStdoutFlag==true&&isStderrFlag==true) {
 			checksum := ""
 			path := ""
 			basename := ""
@@ -158,8 +207,40 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			}
 			outputIdentifier := h.Workflow.Outputs[0].ID
 			fmt.Println("{\"" + outputIdentifier + "\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
+
 		} else {
-			if h.Workflow.Outputs[0].Binding.Glob[0] == "." {
+			if (isStdoutFlag==true&&isStderrFlag==true) {
+				files, err := ioutil.ReadDir(h.Outdir)
+				if err != nil {
+					panic(err)
+				}
+				listingString := ""
+				for _, file := range files {
+					checksum := ""
+					path := ""
+					basename := ""
+					var size int64 = -1
+					if f, err := os.Open(h.Outdir + "/" + file.Name()); err == nil {
+						path = f.Name()
+						basename = filepath.Base(path)
+
+						defer f.Close()
+						fileinfo, _ := f.Stat()
+						size = fileinfo.Size()
+						h := sha1.New()
+						if _, err := io.Copy(h, f); err != nil {
+							log.Fatal(err)
+						}
+
+						checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
+						if listingString != "" {
+							listingString = listingString + ","
+						}
+						listingString = listingString + "\""+basename+"\":{\"checksum\": \"" + checksum + "\",\"location\": \"" + "Any" + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}"
+					}
+				}
+				fmt.Println("{" + listingString + "}")
+			}else	if h.Workflow.Outputs[0].Binding.Glob[0] == "." {
 				// Remove linked input file
 				dstName := filepath.Join(commandExecDir, inputs[0])
 				errRemove := os.Remove(dstName)
@@ -167,7 +248,6 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 				if errRemove != nil {
 					panic(errRemove)
 				}
-				//files, err := ioutil.ReadDir(filepath.Join(commandExecDir,h.Workflow.Outputs[0].Binding.Glob[0]))
 				files, err := ioutil.ReadDir(commandExecDir)
 				if err != nil {
 					panic(err)
@@ -201,7 +281,6 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 				}
 				outputIdentifier := h.Workflow.Outputs[0].ID
 				fmt.Println("{\"" + outputIdentifier + "\":{\"class\": \"Directory\",\"listing\": [" + listingString + "]}}")
-
 			}
 		}
 	}
