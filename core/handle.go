@@ -92,7 +92,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 	isStdoutFlag := false
 	isStderrFlag := false
 	stderrFilename := h.Workflow.Stderr
-	for i:= range h.Workflow.Outputs {
+	for i := range h.Workflow.Outputs {
 		switch h.Workflow.Outputs[i].Types[0].Type {
 		case "stderr":
 			stderrFilename = h.Workflow.Outputs[i].ID
@@ -166,12 +166,12 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			// if _, err := io.Copy(os.Stdout, output); err != nil {
 			// 	return fmt.Errorf("failed to dump standard output file: %v", err)
 			// }
-			if(isStdoutFlag){
+			if isStdoutFlag {
 				if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
 					return fmt.Errorf("failed to move starndard output file: %v", err)
 				}
 			}
-			if(isStderrFlag){
+			if isStderrFlag {
 				if stderrErr := os.Rename(stderrOutput.Name(), filepath.Join(h.Outdir, filepath.Base(stderrOutput.Name()))); stderrErr != nil {
 					return fmt.Errorf("failed to move starndard error file: %v", err)
 				}
@@ -184,7 +184,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		// n9 requires extend here.
 		// before this part, we need to create given filename
 		if h.Workflow.Outputs[0].Types[0].Type != "Directory" &&
-		!(isStdoutFlag==true&&isStderrFlag==true) {
+			!(isStdoutFlag == true && isStderrFlag == true) {
 			checksum := ""
 			path := ""
 			basename := ""
@@ -209,7 +209,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			fmt.Println("{\"" + outputIdentifier + "\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
 
 		} else {
-			if (isStdoutFlag==true&&isStderrFlag==true) {
+			if isStdoutFlag == true && isStderrFlag == true {
 				files, err := ioutil.ReadDir(h.Outdir)
 				if err != nil {
 					panic(err)
@@ -236,11 +236,11 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 						if listingString != "" {
 							listingString = listingString + ","
 						}
-						listingString = listingString + "\""+basename+"\":{\"checksum\": \"" + checksum + "\",\"location\": \"" + "Any" + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}"
+						listingString = listingString + "\"" + basename + "\":{\"checksum\": \"" + checksum + "\",\"location\": \"" + "Any" + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}"
 					}
 				}
 				fmt.Println("{" + listingString + "}")
-			}else	if h.Workflow.Outputs[0].Binding.Glob[0] == "." {
+			} else if h.Workflow.Outputs[0].Binding.Glob[0] == "." {
 				// Remove linked input file
 				dstName := filepath.Join(commandExecDir, inputs[0])
 				errRemove := os.Remove(dstName)
