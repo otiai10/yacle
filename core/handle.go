@@ -238,7 +238,10 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 						},
 					}
 					vm2.Set("self", self)
-					resultObject, _ := vm2.Run("parseInt(self[0].contents)")
+					//
+					contentsBytes := []byte(h.Workflow.Outputs[0].Binding.Eval)
+					contents := string(contentsBytes[2 : len(contentsBytes)-1])
+					resultObject, _ := vm2.Run(contents)
 					result, _ := resultObject.ToString()
 					fmt.Println("{\"" + outputIdentifier + "\": " + result + "}")
 				}
