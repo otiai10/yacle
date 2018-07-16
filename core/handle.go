@@ -1,6 +1,8 @@
 package core
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha1"
 	"fmt"
 	"io"
@@ -13,6 +15,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/robertkrimen/otto"
 
 	cwl "github.com/otiai10/cwl.go"
 )
@@ -83,7 +87,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		os.Link(srcName, dstName)
 		cmd.Dir = commandExecDir
 	}
-	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "stdout" && h.Workflow.Outputs[0].Types[0].Type != "stderr" && h.Workflow.Outputs[0].Types[0].Type != "Directory" {
+	if h.Workflow.Outputs[0].Types[0].Type != "File" && h.Workflow.Outputs[0].Types[0].Type != "int" && h.Workflow.Outputs[0].Types[0].Type != "stdout" && h.Workflow.Outputs[0].Types[0].Type != "stderr" && h.Workflow.Outputs[0].Types[0].Type != "Directory" {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to execute BaseCommand: %v", err)
 		}
@@ -136,7 +140,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if err := os.Rename(output.Name(), filepath.Join(h.Outdir, filepath.Base(output.Name()))); err != nil {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
-	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
+	} else if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "int" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
 		var output *os.File
 		var err error
 		if isStdoutFlag {
@@ -158,6 +162,20 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		if err == nil {
 			cmd.Stdout = output
 			cmd.Stderr = stderrOutput
+			vm := otto.New()
+			inputs, _ := vm.Object(`inputs = {}`)
+			file1, _ := vm.Object(`file1 = {}`)
+			inputs.Set("file1", file1)
+			file1.Set("path", "whale.txt")
+			stdinFile, _ := vm.Run("inputs.file1.path")
+			sF, _ := os.Open(filepath.Join(filepath.Dir(commandExecDir) + "/" + stdinFile.String()))
+			stdin, errStdin := cmd.StdinPipe()
+			if errStdin != nil {
+				fmt.Println(errStdin)
+			}
+
+			io.Copy(stdin, bufio.NewReader(sF))
+			stdin.Close()
 			err = cmd.Start()
 			if err != nil {
 				panic(err)
@@ -178,7 +196,7 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 			}
 		}
 	}
-	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
+	if h.Workflow.Outputs[0].Types[0].Type == "File" || h.Workflow.Outputs[0].Types[0].Type == "int" || h.Workflow.Outputs[0].Types[0].Type == "stdout" || h.Workflow.Outputs[0].Types[0].Type == "stderr" || h.Workflow.Outputs[0].Types[0].Type == "Directory" {
 		// TODO output file information
 		// This is for n7
 		// n9 requires extend here.
@@ -206,8 +224,27 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 				checksum = fmt.Sprintf("sha1$%x", string(h.Sum(nil)))
 			}
 			outputIdentifier := h.Workflow.Outputs[0].ID
-			fmt.Println("{\"" + outputIdentifier + "\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
-
+			if h.Workflow.Outputs[0].Binding != nil && h.Workflow.Outputs[0].Binding.LoadContents {
+				if f2, err := os.Open(filepath.Join(h.Outdir, filepath.Base(filename))); err == nil {
+					defer f2.Close()
+					lr := io.LimitReader(f2, 64*1024)
+					buf := new(bytes.Buffer)
+					buf.ReadFrom(lr)
+					s := buf.String()
+					vm2 := otto.New()
+					self := []map[string]interface{}{
+						{
+							"contents": s,
+						},
+					}
+					vm2.Set("self", self)
+					resultObject, _ := vm2.Run("parseInt(self[0].contents)")
+					result, _ := resultObject.ToString()
+					fmt.Println("{\"" + outputIdentifier + "\": " + result + "}")
+				}
+			} else {
+				fmt.Println("{\"" + outputIdentifier + "\":{\"checksum\": \"" + checksum + "\",\"basename\": \"" + basename + "\",\"location\": \"" + location + "\",\"path\": \"" + path + "\",\"class\": \"File\",\"size\": " + strconv.FormatInt(size, 10) + "}}")
+			}
 		} else {
 			if isStdoutFlag == true && isStderrFlag == true {
 				files, err := ioutil.ReadDir(h.Outdir)
