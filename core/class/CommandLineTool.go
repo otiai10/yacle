@@ -25,6 +25,7 @@ type CommandLineTool struct {
 	Outdir     string // Given by context
 	Root       *cwl.Root
 	Parameters cwl.Parameters
+	Command    *exec.Cmd
 }
 
 // Run ...
@@ -381,4 +382,122 @@ func (tool *CommandLineTool) generateCommand(priors, arguments, inputs []string)
 	oneline = append(oneline, inputs...)
 
 	return exec.Command(oneline[0], oneline[1:]...), nil
+}
+
+// cmdが実行されるディレクトリを決める
+// tool.Commandが生成されている必要がある
+func (tool *CommandLineTool) cmdが実行されるディレクトリを決める() error {
+
+	rootdir := filepath.Dir(tool.Root.Path)
+	tool.Command.Dir = rootdir
+
+	// If "Directory" is specified in "outputs", use it.
+	for _, o := range tool.Root.Outputs {
+		if o.Types[0].Type == "Directory" {
+			tmpdir, err := ioutil.TempDir("/", "")
+			if err != nil {
+				return err
+			}
+			if err := os.Link(rootdir, tmpdir); err != nil {
+				return err
+			}
+			tool.Command.Dir = tmpdir
+		}
+	}
+
+	return nil
+}
+
+// 標準出力の行き先を決める
+// tool.Command、およびtool.Command.Dirが先に決定されている必要がある
+func (tool *CommandLineTool) 標準出力の行き先を決める() error {
+
+	// Prefer "stdout" specified on ROOT
+	if tool.Root.Stdout != "" {
+		stdoutfilepath := filepath.Join(tool.Command.Dir, tool.Root.Stdout)
+		stdoutfile, err := os.Create(stdoutfilepath)
+		if err != nil {
+			return err
+		}
+		tool.Command.Stdout = stdoutfile
+		return nil
+	}
+
+	// Respect "stdout" specified in each "output"
+	for _, o := range tool.Root.Outputs {
+		if o.Types[0].Type == "stdout" {
+			stdoutfilepath := filepath.Join(tool.Command.Dir, o.ID)
+			stdoutfile, err := os.Create(stdoutfilepath)
+			if err != nil {
+				return err
+			}
+			tool.Command.Stdout = stdoutfile
+		}
+	}
+
+	// nothing specified
+	return nil
+}
+
+// 標準エラーの行き先を決める
+func (tool *CommandLineTool) 標準エラーの行き先を決める() error {
+
+	// Prefer "stderr" specified on ROOT
+	if tool.Root.Stdout != "" {
+		stderrfilepath := filepath.Join(tool.Command.Dir, tool.Root.Stderr)
+		stderrfile, err := os.Create(stderrfilepath)
+		if err != nil {
+			return err
+		}
+		tool.Command.Stderr = stderrfile
+		return nil
+	}
+
+	// Respect "stderr" specified in each "output"
+	for _, o := range tool.Root.Outputs {
+		if o.Types[0].Type == "stderr" {
+			stderrfilepath := filepath.Join(tool.Command.Dir, o.ID)
+			stderrfile, err := os.Create(stderrfilepath)
+			if err != nil {
+				return err
+			}
+			tool.Command.Stderr = stderrfile
+		}
+	}
+
+	return nil
+}
+
+// outdirを決定する
+func (tool *CommandLineTool) outdirを決定する() error {
+	if tool.Outdir != "" {
+		return nil
+	}
+	rootdir := filepath.Dir(tool.Root.Path)
+	tool.Outdir = rootdir
+	return nil
+}
+
+// outdirにいろいろ揃える。必要があればcwl.output.jsonをつくる
+func (tool *CommandLineTool) outdirにいろいろ揃える() error {
+
+	whatthefuck := "cwl.output.json"
+
+	defaultout, err := os.Create(filepath.Join(tool.Outdir, whatthefuck))
+	if err != nil {
+		return err
+	}
+	defer defaultout.Close()
+
+	// これ、os.Stdoutじゃなくてcmd.Stdoutでは？
+	if _, err := io.Copy(os.Stdout, defaultout); err != nil {
+		return fmt.Errorf("failed to dump standard output file: %v", err)
+	}
+
+	return nil
+}
+
+// Finalize closes all file desccriptors if needed.
+func (tool *CommandLineTool) Finalize() error {
+	return nil
 }

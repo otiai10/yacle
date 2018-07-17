@@ -7,6 +7,7 @@ import (
 // Tool ...
 type Tool interface {
 	Run() error
+	Finalize() error
 }
 
 // ClassTool constructs and initializes ClassTool, e.g. CommandLineTool.
