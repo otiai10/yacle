@@ -186,11 +186,9 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 
 			io.Copy(stdin, bufio.NewReader(sF))
 			stdin.Close()
-			err = cmd.Start()
-			if err != nil {
-				panic(err)
+			if err := cmd.Run(); err != nil {
+				return err
 			}
-			cmd.Wait()
 			// if _, err := io.Copy(os.Stdout, output); err != nil {
 			// 	return fmt.Errorf("failed to dump standard output file: %v", err)
 			// }
