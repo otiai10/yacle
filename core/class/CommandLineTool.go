@@ -109,7 +109,10 @@ func (tool *CommandLineTool) Run() error {
 		if err := os.Rename(output.Name(), filepath.Join(tool.Outdir, filepath.Base(output.Name()))); err != nil {
 			return fmt.Errorf("failed to move starndard output file: %v", err)
 		}
-	} else if tool.Root.Outputs[0].Types[0].Type == "File" || tool.Root.Outputs[0].Types[0].Type == "int" || tool.Root.Outputs[0].Types[0].Type == "stdout" || tool.Root.Outputs[0].Types[0].Type == "stderr" || tool.Root.Outputs[0].Types[0].Type == "Directory" {
+		return nil
+	}
+
+	if tool.Root.Outputs[0].Types[0].Type == "File" || tool.Root.Outputs[0].Types[0].Type == "int" || tool.Root.Outputs[0].Types[0].Type == "stdout" || tool.Root.Outputs[0].Types[0].Type == "stderr" || tool.Root.Outputs[0].Types[0].Type == "Directory" {
 		var output *os.File
 		var err error
 		if isStdoutFlag {
@@ -162,8 +165,7 @@ func (tool *CommandLineTool) Run() error {
 				}
 			}
 		}
-	}
-	if tool.Root.Outputs[0].Types[0].Type == "File" || tool.Root.Outputs[0].Types[0].Type == "int" || tool.Root.Outputs[0].Types[0].Type == "stdout" || tool.Root.Outputs[0].Types[0].Type == "stderr" || tool.Root.Outputs[0].Types[0].Type == "Directory" {
+
 		// TODO output file information
 		// This is for n7
 		// n9 requires extend here.
