@@ -10,4 +10,4 @@ before_script:
     - go install
     - pip install --user cwltest
 script:
-    - ./cwl/run_test.sh RUNNER=yacle -n1,2,3,4,5
+    - ./testcases
