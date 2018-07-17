@@ -27,7 +27,6 @@ type Handler struct {
 	Parameters cwl.Parameters
 	Outdir     string
 	Quiet      bool
-	Alias      map[string]interface{}
 	logger     *log.Logger
 }
 
@@ -40,9 +39,6 @@ func NewHandler(root *cwl.Root) (*Handler, error) {
 	return &Handler{
 		Workflow: root,
 		Outdir:   cwd,
-		Alias: map[string]interface{}{
-			"runtime.cores": "2", // TODO: This is tmp hard coding!!!!
-		},
 	}, nil
 }
 
@@ -398,9 +394,9 @@ func (h *Handler) ensureInput(input cwl.Input) (cwl.Input, error) {
 
 // AliasFor ...
 func (h *Handler) AliasFor(key string) string {
-	v, ok := h.Alias[key]
-	if !ok {
-		return ""
+	switch key {
+	case "runtime.cores":
+		return "2"
 	}
-	return fmt.Sprintf("%v", v)
+	return ""
 }
