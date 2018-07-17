@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+LENGTH=`cat .conformance.json| jq -c '.cases | length'`
+CASES=`cat .conformance.json| jq -c .cases | sed -e "s/^\[//" | sed -e "s/\]$//"`
+
+./cwl/run_test.sh RUNNER=yacle -n${CASES}
+
+cat .conformance.json | \
+sed -e "s/\"pass\": [0-9]*/\"pass\": ${LENGTH}/" | \
+jq . > tmpfile && mv tmpfile .conformance.json
