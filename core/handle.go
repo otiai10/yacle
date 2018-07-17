@@ -51,6 +51,23 @@ func (h *Handler) SetLogger(logger *log.Logger) {
 	h.logger = logger
 }
 
+// generateCommand ...
+func (h *Handler) generateCommand(priors, arguments, inputs []string) (*exec.Cmd, error) {
+
+	if len(h.Workflow.BaseCommands) == 0 {
+		return exec.Command("bash", "-c", h.Workflow.Arguments[0].Binding.ValueFrom.Key()), nil
+	}
+
+	// Join all slices
+	oneline := []string{}
+	oneline = append(oneline, h.Workflow.BaseCommands...)
+	oneline = append(oneline, priors...)
+	oneline = append(oneline, arguments...)
+	oneline = append(oneline, inputs...)
+
+	return exec.Command(oneline[0], oneline[1:]...), nil
+}
+
 // Handle is an entrypoint of the engine for CWL.
 func (h *Handler) Handle(job cwl.Parameters) error {
 	h.Parameters = job
@@ -62,18 +79,11 @@ func (h *Handler) Handle(job cwl.Parameters) error {
 		return fmt.Errorf("failed to ensure required inputs: %v", err)
 	}
 
-	oneline := append(priors, append(arguments, inputs...)...)
+	cmd, err := h.generateCommand(priors, arguments, inputs)
+	if err != nil {
+		return fmt.Errorf("failed to generate command struct: %v", err)
+	}
 
-	if len(h.Workflow.BaseCommands) > 1 {
-		oneline = append(h.Workflow.BaseCommands[1:], oneline...)
-	}
-	var cmd *exec.Cmd
-	if len(h.Workflow.BaseCommands) != 0 {
-		cmd = exec.Command(h.Workflow.BaseCommands[0], oneline...)
-	} else {
-		// using arguments valueFrom
-		cmd = exec.Command("bash", "-c", h.Workflow.Arguments[0].Binding.ValueFrom.Key())
-	}
 	// Set command execution directory
 	commandExecDir := h.Workflow.Path
 	cmd.Dir = filepath.Dir(commandExecDir)
