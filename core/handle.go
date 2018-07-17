@@ -51,7 +51,7 @@ func (h *Handler) SetLogger(logger *log.Logger) {
 	h.logger = logger
 }
 
-// Handle ...
+// Handle is an entrypoint of the engine for CWL.
 func (h *Handler) Handle(job cwl.Parameters) error {
 	h.Parameters = job
 	// FIXME: this procedure ONLY adjusts to "baseCommand" job
