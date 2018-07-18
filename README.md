@@ -33,3 +33,9 @@ move to yacle directory and
 ```sh
 go install . ;  cwl/run_test.sh RUNNER=yacle -n1
 ```
+
+## if you feel something wrong
+
+```
+go get ./...
+```
