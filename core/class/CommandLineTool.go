@@ -267,14 +267,19 @@ func (tool *CommandLineTool) arrangeOutputDirContents() error {
 		if _, err := io.Copy(os.Stdout, defaultout); err != nil {
 			return err
 		}
+		return nil
+	}
+
+	// Load Contents as JavaScript runtime if needed.
+	vm, err := tool.Root.Outputs.LoadContents(tool.Command.Dir)
+	if err != nil {
+		return err
 	}
 
 	// CWL wants to dump metadata of outputs with type="File"
 	// See also https://www.commonwl.org/v1.0/CommandLineTool.html#File
-	for _, output := range tool.Root.Outputs {
-		if err := output.DumpFileMeta(tool.Command.Dir, os.Stdout); err != nil {
-			return err
-		}
+	if err := tool.Root.Outputs.Dump(vm, tool.Command.Dir, tool.Root.Stdout, tool.Root.Stderr, os.Stdout); err != nil {
+		return err
 	}
 
 	return nil
