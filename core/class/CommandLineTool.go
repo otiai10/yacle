@@ -267,6 +267,7 @@ func (tool *CommandLineTool) arrangeOutputDirContents() error {
 		if _, err := io.Copy(os.Stdout, defaultout); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	// Load Contents as JavaScript runtime if needed.
