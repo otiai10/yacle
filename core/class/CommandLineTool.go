@@ -103,7 +103,7 @@ func (tool *CommandLineTool) ensureInputs() (priors []string, result []string, e
 }
 
 // ensureInput ...
-func (tool *CommandLineTool) ensureInput(input cwl.Input) (cwl.Input, error) {
+func (tool *CommandLineTool) ensureInput(input *cwl.Input) (*cwl.Input, error) {
 	if provided, ok := tool.Parameters[input.ID]; ok {
 		input.Provided = provided
 	}
