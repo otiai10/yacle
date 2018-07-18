@@ -151,6 +151,12 @@ func (tool *CommandLineTool) generateBasicCommand(priors, arguments, inputs []st
 // defineCommandExecDirectory
 func (tool *CommandLineTool) defineCommandExecDirectory() error {
 
+	// Prefer specified "--outdir" for working directory
+	if tool.Outdir != "" {
+		tool.Command.Dir = tool.Outdir
+		return nil
+	}
+
 	// Anyway, use temp directory for Command Exec Directory
 	tmpdir, err := ioutil.TempDir("/tmp", "yacle-")
 	if err != nil {
