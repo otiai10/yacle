@@ -41,6 +41,10 @@ func (tool *CommandLineTool) Run() error {
 		return fmt.Errorf("failed to define command execution directory: %v", err)
 	}
 
+	if err := tool.placeInputFilesToCommandExecDir(); err != nil {
+		return fmt.Errorf("failed to place input files: %v", err)
+	}
+
 	if err := tool.defineStdoutDestination(); err != nil {
 		return fmt.Errorf("failed to define stdout destination: %v", err)
 	}
@@ -79,11 +83,6 @@ func (tool *CommandLineTool) ensureArguments() []string {
 
 // ensureInputs ...
 func (tool *CommandLineTool) ensureInputs() (priors []string, result []string, err error) {
-	defer func() {
-		if i := recover(); i != nil {
-			err = fmt.Errorf("failed to collate required inputs and provided params: %v", i)
-		}
-	}()
 	sort.Sort(tool.Root.Inputs)
 	for _, in := range tool.Root.Inputs {
 		in, err = tool.ensureInput(in)
@@ -105,9 +104,9 @@ func (tool *CommandLineTool) ensureInputs() (priors []string, result []string, e
 // ensureInput ...
 func (tool *CommandLineTool) ensureInput(input *cwl.Input) (*cwl.Input, error) {
 	if provided, ok := tool.Parameters[input.ID]; ok {
-		input.Provided = cwl.Provided{}.New(provided)
+		input.Provided = cwl.Provided{}.New(input.ID, provided)
 	}
-	if input.Default == nil && input.Binding == nil && input.Provided.Raw == nil {
+	if input.Default == nil && input.Binding == nil && input.Provided == nil {
 		return input, fmt.Errorf("input `%s` doesn't have default field but not provided", input.ID)
 	}
 	if key, needed := input.Types[0].NeedRequirement(); needed {
@@ -152,20 +151,28 @@ func (tool *CommandLineTool) generateBasicCommand(priors, arguments, inputs []st
 // defineCommandExecDirectory
 func (tool *CommandLineTool) defineCommandExecDirectory() error {
 
-	rootdir := filepath.Dir(tool.Root.Path)
-	tool.Command.Dir = rootdir
+	// Anyway, use temp directory for Command Exec Directory
+	tmpdir, err := ioutil.TempDir("/tmp", "yacle-")
+	if err != nil {
+		return err
+	}
+	tool.Command.Dir = tmpdir
 
-	// If "Directory" is specified in "outputs", use it.
-	for _, o := range tool.Root.Outputs {
-		if o.Types[0].Type == "Directory" {
-			tmpdir, err := ioutil.TempDir("/", "")
-			if err != nil {
-				return err
-			}
-			if err := os.Link(rootdir, tmpdir); err != nil {
-				return err
-			}
-			tool.Command.Dir = tmpdir
+	return nil
+}
+
+// placeInputFilesToCommandExecDir ...
+func (tool *CommandLineTool) placeInputFilesToCommandExecDir() error {
+
+	rootdir := filepath.Dir(tool.Root.Path)
+	cmddir := tool.Command.Dir
+
+	for _, input := range tool.Root.Inputs {
+		if provided := input.Provided; provided != nil && provided.Entry != nil {
+			return provided.Entry.LinkTo(cmddir, rootdir)
+		}
+		if defaultinput := input.Default; defaultinput != nil && defaultinput.Entry != nil {
+			return defaultinput.Entry.LinkTo(cmddir, rootdir)
 		}
 	}
 
