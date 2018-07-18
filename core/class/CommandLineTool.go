@@ -105,9 +105,9 @@ func (tool *CommandLineTool) ensureInputs() (priors []string, result []string, e
 // ensureInput ...
 func (tool *CommandLineTool) ensureInput(input *cwl.Input) (*cwl.Input, error) {
 	if provided, ok := tool.Parameters[input.ID]; ok {
-		input.Provided = provided
+		input.Provided = cwl.Provided{}.New(provided)
 	}
-	if input.Default == nil && input.Binding == nil && input.Provided == nil {
+	if input.Default == nil && input.Binding == nil && input.Provided.Raw == nil {
 		return input, fmt.Errorf("input `%s` doesn't have default field but not provided", input.ID)
 	}
 	if key, needed := input.Types[0].NeedRequirement(); needed {
