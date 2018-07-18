@@ -2,6 +2,8 @@
 
 set -e
 
+go install .
+
 LENGTH=`cat .conformance.json| jq -c '.cases | length'`
 CASES=`cat .conformance.json| jq -c .cases | sed -e "s/^\[//" | sed -e "s/\]$//"`
 
