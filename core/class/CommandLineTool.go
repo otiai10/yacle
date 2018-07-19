@@ -58,6 +58,10 @@ func (tool *CommandLineTool) Run() error {
 		return fmt.Errorf("failed to define stderr destination: %v", err)
 	}
 
+	if err := tool.setupEnvironmentVariable(); err != nil {
+		return fmt.Errorf("failed to setup environment variable: %v", err)
+	}
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("exec failed: %v", err)
 	}
@@ -222,6 +226,7 @@ func (tool *CommandLineTool) defineStdinSource() error {
 			return nil
 		}
 		stdinfilename = retval.String()
+		tool.Root.InputsVM = vm
 	}
 	stdinfilepath := filepath.Join(tool.Command.Dir, stdinfilename)
 	if filepath.IsAbs(stdinfilename) {
@@ -317,6 +322,51 @@ func (tool *CommandLineTool) defineOutputDir() error {
 	}
 	rootdir := filepath.Dir(tool.Root.Path)
 	tool.Outdir = rootdir
+	return nil
+}
+
+// setupEnvironmentVariable
+func (tool *CommandLineTool) setupEnvironmentVariable() error {
+
+	// Setup Environment Variable to command
+	if tool.Root.Requirements == nil {
+		return nil
+	}
+	for _, requirement := range tool.Root.Requirements {
+		if requirement.Class != "EnvVarRequirement" {
+			continue
+		}
+		for _, envdef := range requirement.EnvDef {
+			if !tool.needVariableEvaluation(envdef.Value) {
+				tool.Command.Env = append(tool.Command.Env, envdef.Name+"="+envdef.Value)
+				continue
+			}
+			// Create JavaScript runtime
+			if tool.Root.InputsVM == nil {
+				vm, err := tool.Root.Inputs.ToJavaScriptVM()
+				if err != nil {
+					return err
+				}
+				if vm == nil {
+					return nil
+				}
+				tool.Root.InputsVM = vm
+			}
+			variable, err := tool.extractVariableExpression(envdef.Value)
+			if err != nil {
+				return err
+			}
+			retval, err := tool.Root.InputsVM.Run(variable)
+			if err != nil {
+				return err
+			}
+			if !retval.IsString() {
+				return nil
+			}
+
+			tool.Command.Env = append(tool.Command.Env, envdef.Name+"="+retval.String())
+		}
+	}
 	return nil
 }
 
