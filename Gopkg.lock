@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/otiai10/cwl.go"
   packages = ["."]
-  revision = "fcd847306f825690cf05be6888a3c5410741eab5"
+  revision = "b024b1f8f16a38560b955d5d3693b7fe160073e1"
 
 [[projects]]
   branch = "master"
