@@ -1,13 +1,13 @@
 package class
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -192,37 +192,63 @@ func (tool *CommandLineTool) placeInputFilesToCommandExecDir() error {
 
 // defineStdoutDestination
 func (tool *CommandLineTool) defineStdinSource() error {
-	if tool.Root.Stdin != "" {
-		stdin, err := tool.Command.StdinPipe()
-		if err != nil {
-			return err
-		}
-		defer stdin.Close()
-		stdinfilename := tool.Root.Stdin
-		if strings.HasPrefix(stdinfilename, "$(") && strings.HasSuffix(stdinfilename, ")") {
-			// Create JavaScript runtime
-			vm, err := tool.Root.Inputs.ToJavaScriptVM(tool.Command.Dir)
-			if err != nil {
-				return err
-			}
-			retval, err := vm.Run(stdinfilename[2 : len(stdinfilename)-1])
-			if err != nil {
-				return err
-			}
-			stdinfilename = retval.String()
-		}
-		//
-		stdinfilepath := filepath.Join(tool.Command.Dir, stdinfilename)
-		stdinfile, err := os.Open(stdinfilepath)
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(stdin, bufio.NewReader(stdinfile))
-		if err != nil {
-			return err
-		}
+	if tool.Root.Stdin == "" {
+		return nil
 	}
+	stdin, err := tool.Command.StdinPipe()
+	if err != nil {
+		return err
+	}
+	defer stdin.Close()
+	stdinfilename := tool.Root.Stdin
+	if tool.needVariableEvaluation(stdinfilename) {
+		// Create JavaScript runtime
+		vm, err := tool.Root.Inputs.ToJavaScriptVM()
+		if err != nil {
+			return err
+		}
+		if vm == nil {
+			return nil
+		}
+		variable, err := tool.extractVariableExpression(stdinfilename)
+		if err != nil {
+			return err
+		}
+		retval, err := vm.Run(variable)
+		if err != nil {
+			return err
+		}
+		if !retval.IsString() {
+			return nil
+		}
+		stdinfilename = retval.String()
+	}
+	stdinfilepath := filepath.Join(tool.Command.Dir, stdinfilename)
+	if filepath.IsAbs(stdinfilename) {
+		stdinfilepath = stdinfilename
+	}
+	stdinfile, err := os.Open(stdinfilepath)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(stdin, stdinfile)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// check if we need variable evaluation
+func (tool *CommandLineTool) needVariableEvaluation(s string) bool {
+	return strings.HasPrefix(s, "$(") && strings.HasSuffix(s, ")")
+}
+
+// extract variable expression
+func (tool *CommandLineTool) extractVariableExpression(s string) (string, error) {
+	s = strings.TrimLeft(s, "$(")
+	s = regexp.MustCompile("\\)$").ReplaceAllString(s, "")
+	return s, nil
 }
 
 // defineStdoutDestination
