@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strings"
 
 	cwl "github.com/otiai10/cwl.go"
 )
@@ -43,6 +45,9 @@ func (tool *CommandLineTool) Run() error {
 
 	if err := tool.placeInputFilesToCommandExecDir(); err != nil {
 		return fmt.Errorf("failed to place input files: %v", err)
+	}
+	if err := tool.defineStdinSource(); err != nil {
+		return fmt.Errorf("failed to define stdin source: %v", err)
 	}
 
 	if err := tool.defineStdoutDestination(); err != nil {
@@ -183,6 +188,67 @@ func (tool *CommandLineTool) placeInputFilesToCommandExecDir() error {
 	}
 
 	return nil
+}
+
+// defineStdoutDestination
+func (tool *CommandLineTool) defineStdinSource() error {
+	if tool.Root.Stdin == "" {
+		return nil
+	}
+	stdin, err := tool.Command.StdinPipe()
+	if err != nil {
+		return err
+	}
+	defer stdin.Close()
+	stdinfilename := tool.Root.Stdin
+	if tool.needVariableEvaluation(stdinfilename) {
+		// Create JavaScript runtime
+		vm, err := tool.Root.Inputs.ToJavaScriptVM()
+		if err != nil {
+			return err
+		}
+		if vm == nil {
+			return nil
+		}
+		variable, err := tool.extractVariableExpression(stdinfilename)
+		if err != nil {
+			return err
+		}
+		retval, err := vm.Run(variable)
+		if err != nil {
+			return err
+		}
+		if !retval.IsString() {
+			return nil
+		}
+		stdinfilename = retval.String()
+	}
+	stdinfilepath := filepath.Join(tool.Command.Dir, stdinfilename)
+	if filepath.IsAbs(stdinfilename) {
+		stdinfilepath = stdinfilename
+	}
+	stdinfile, err := os.Open(stdinfilepath)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(stdin, stdinfile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// check if we need variable evaluation
+func (tool *CommandLineTool) needVariableEvaluation(s string) bool {
+	return strings.HasPrefix(s, "$(") && strings.HasSuffix(s, ")")
+}
+
+// extract variable expression
+func (tool *CommandLineTool) extractVariableExpression(s string) (string, error) {
+	s = strings.TrimLeft(s, "$(")
+	s = regexp.MustCompile("\\)$").ReplaceAllString(s, "")
+	return s, nil
 }
 
 // defineStdoutDestination
