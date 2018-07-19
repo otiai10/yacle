@@ -1,6 +1,7 @@
 package class
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	cwl "github.com/otiai10/cwl.go"
 )
@@ -43,6 +45,9 @@ func (tool *CommandLineTool) Run() error {
 
 	if err := tool.placeInputFilesToCommandExecDir(); err != nil {
 		return fmt.Errorf("failed to place input files: %v", err)
+	}
+	if err := tool.defineStdinSource(); err != nil {
+		return fmt.Errorf("failed to define stdin source: %v", err)
 	}
 
 	if err := tool.defineStdoutDestination(); err != nil {
@@ -182,6 +187,41 @@ func (tool *CommandLineTool) placeInputFilesToCommandExecDir() error {
 		}
 	}
 
+	return nil
+}
+
+// defineStdoutDestination
+func (tool *CommandLineTool) defineStdinSource() error {
+	if tool.Root.Stdin != "" {
+		stdin, err := tool.Command.StdinPipe()
+		if err != nil {
+			return err
+		}
+		defer stdin.Close()
+		stdinfilename := tool.Root.Stdin
+		if strings.HasPrefix(stdinfilename, "$(") && strings.HasSuffix(stdinfilename, ")") {
+			// Create JavaScript runtime
+			vm, err := tool.Root.Inputs.CreateVM(tool.Command.Dir)
+			if err != nil {
+				return err
+			}
+			retval, err := vm.Run(stdinfilename[2 : len(stdinfilename)-1])
+			if err != nil {
+				return err
+			}
+			stdinfilename = retval.String()
+		}
+		//
+		stdinfilepath := filepath.Join(tool.Command.Dir, stdinfilename)
+		stdinfile, err := os.Open(stdinfilepath)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(stdin, bufio.NewReader(stdinfile))
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
