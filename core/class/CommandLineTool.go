@@ -201,7 +201,7 @@ func (tool *CommandLineTool) defineStdinSource() error {
 		stdinfilename := tool.Root.Stdin
 		if strings.HasPrefix(stdinfilename, "$(") && strings.HasSuffix(stdinfilename, ")") {
 			// Create JavaScript runtime
-			vm, err := tool.Root.Inputs.CreateVM(tool.Command.Dir)
+			vm, err := tool.Root.Inputs.ToJavaScriptVM(tool.Command.Dir)
 			if err != nil {
 				return err
 			}
