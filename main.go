@@ -8,10 +8,13 @@ import (
 	"github.com/urfave/cli"
 )
 
+const version = "0.0.1"
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "yacle"
 	app.Usage = "Yet Another CWL Engine"
+	app.Version = version
 	app.Commands = []cli.Command{
 		commands.Run, // yacle run
 	}
