@@ -5,13 +5,13 @@
 
 Yet Another [CWL](https://github.com/common-workflow-language/common-workflow-language) Engine
 
-# installation
+# Installation
 
 ```sh
-go get -u github.com/otiai10/yacle
+go get -u -v github.com/otiai10/yacle
 ```
 
-# try it
+# Try it
 
 ```sh
 yacle run 1st-tool.cwl echo-job.yml
@@ -22,20 +22,28 @@ yacle run 1st-tool.cwl echo-job.yml
 ## Just execute
 
 ```sh
-cd cwl
-./run_test.sh RUNNER=yacle -n1
+git submodule update --init
+./cwl/run_test.sh RUNNER=yacle -n1
 ```
 
-## Install newest yacle and test with it
+## Development
 
-move to yacle directory and
+Update the RUNNER: yacle,
 
 ```sh
-go install . ;  cwl/run_test.sh RUNNER=yacle -n1
+go install .
+./cwl/run_test.sh RUNNER=yacle -n1
 ```
 
-## if you feel something wrong
+## Get confermance coverage
+
+```sh
+./testcases
+```
+
+## If you get something wrong
 
 ```
 go get ./...
 ```
+
